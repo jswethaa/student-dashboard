@@ -121,6 +121,93 @@ const Guidance = ({ language }) => {
         </p>
       </div>
 
+      {/* Visual Guidance Section */}
+      <Card>
+        <div className="p-6">
+          <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <Sparkles className="w-7 h-7 text-purple-600" />
+            {language === "en" ? "Visual Guidance" : "दृश्य मार्गदर्शन"}
+          </h3>
+          <p className="text-gray-600 mb-8 text-lg">
+            {language === "en" 
+              ? "Watch these helpful videos to better understand the DBT seeding process"
+              : "डीबीटी सीडिंग प्रक्रिया को बेहतर समझने के लिए इन सहायक वीडियो को देखें"}
+          </p>
+          
+          {/* Video Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Video 1 */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="p-4">
+                <video 
+                  className="w-full rounded-lg shadow-sm" 
+                  controls 
+                  preload="metadata"
+                  poster="https://via.placeholder.com/400x225/4F46E5/FFFFFF?text=DBT+Awareness+Intro"
+                >
+                  <source src="/assets/1.mp4" type="video/mp4" />
+                  <source src="/videos/dbt-awareness-intro.webm" type="video/webm" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="mt-4 text-center">
+                  <h4 className="font-semibold text-gray-800 text-lg mb-2">
+                    {language === "en" ? "DBT Awareness Intro" : "डीबीटी जागरूकता परिचय"}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    {language === "en" 
+                      ? "Learn about Direct Benefit Transfer and its importance for students"
+                      : "प्रत्यक्ष लाभ हस्तांतरण और छात्रों के लिए इसके महत्व के बारे में जानें"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Video 2 */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="p-4">
+                <video 
+                  className="w-full rounded-lg shadow-sm" 
+                  controls 
+                  preload="metadata"
+                  poster="https://via.placeholder.com/400x225/7C3AED/FFFFFF?text=Step-by-Step+DBT+Process"
+                >
+                  <source src="/assets/2.mp4" type="video/mp4" />
+                  <source src="/videos/dbt-step-by-step.webm" type="video/webm" />
+                  Your browser does not support the video tag.
+                </video>
+                <div className="mt-4 text-center">
+                  <h4 className="font-semibold text-gray-800 text-lg mb-2">
+                    {language === "en" ? "Step-by-Step DBT Process" : "चरणबद्ध डीबीटी प्रक्रिया"}
+                  </h4>
+                  <p className="text-gray-600 text-sm">
+                    {language === "en" 
+                      ? "Follow along with detailed instructions for completing DBT seeding"
+                      : "डीबीटी सीडिंग पूरा करने के लिए विस्तृत निर्देशों के साथ आगे बढ़ें"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Video Access Note */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h5 className="font-medium text-blue-800 mb-1">
+                  {language === "en" ? "Video Access" : "वीडियो पहुंच"}
+                </h5>
+                <p className="text-sm text-blue-700">
+                  {language === "en" 
+                    ? "Videos are optimized for both desktop and mobile viewing. Ensure you have a stable internet connection for the best experience."
+                    : "वीडियो डेस्कटॉप और मोबाइल दोनों के लिए अनुकूलित हैं। सबसे अच्छे अनुभव के लिए सुनिश्चित करें कि आपके पास स्थिर इंटरनेट कनेक्शन है।"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* Progress Bar */}
       <Card>
         <div className="p-6">
@@ -237,6 +324,7 @@ const Guidance = ({ language }) => {
           </Card>
                   ))}
                 </div>
+
 
       {/* Action Buttons */}
                 <div className="flex justify-between">

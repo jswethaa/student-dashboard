@@ -142,8 +142,10 @@ function App() {
             currentUser={currentUser}
             language={language}
             onLogout={handleLogout}
+            onLanguageChange={setLanguage}
             onThemeToggle={handleThemeToggle}
             isDarkMode={isDarkMode}
+            setCurrentPage={setCurrentPage} 
           />
           <main className="flex-1 p-6">{renderPage()}</main>
 

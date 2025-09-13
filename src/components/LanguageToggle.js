@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-const LanguageToggle = ({ language, setLanguage }) => {
+const LanguageToggle = ({ language, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   const languages = {
@@ -29,7 +29,7 @@ const LanguageToggle = ({ language, setLanguage }) => {
             <button
               key={code}
               onClick={() => {
-                setLanguage(code)
+                onLanguageChange(code) // ✅ uses correct prop
                 setIsOpen(false)
               }}
               className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors ${
