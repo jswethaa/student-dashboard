@@ -3,11 +3,9 @@ import {
   User, 
   Mail, 
   Phone, 
-  Calendar, 
   MapPin, 
   GraduationCap, 
   DollarSign, 
-  Banknote,
   Save,
   Edit3,
   CheckCircle,
@@ -15,19 +13,16 @@ import {
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import apiService from '../services/api';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
-const StudentProfile = ({ currentUser, updateUserData, language }) => {
+const StudentProfile = ({ currentUser, language }) => {
   const [profileData, setProfileData] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
     phone: currentUser?.phone || '',
     gender: currentUser?.gender || 'Male',
     category: currentUser?.category || 'General',
-    father_name: currentUser?.father_name || '',
-    mother_name: currentUser?.mother_name || '',
-    dob: currentUser?.dob || '',
     address: currentUser?.address || '',
     district: currentUser?.district || '',
     state: currentUser?.state || '',
@@ -38,17 +33,30 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
     family_income: currentUser?.family_income || '',
     bank_account: currentUser?.bank_account || '',
     ifsc_code: currentUser?.ifsc_code || '',
-    dbt_status: currentUser?.dbt_status || 'Not Active',
-    aadhaar: currentUser?.aadhaar || '',
-    disabilities: currentUser?.disabilities || [],
-    achievements: currentUser?.achievements || [],
-    extracurricular: currentUser?.extracurricular || []
+    aadhaar: currentUser?.aadhaar || ''
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [errors, setErrors] = useState({});
+
+  // Fetch data from Firebase
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!currentUser?.uid) return;
+      try {
+        const docRef = doc(db, 'students', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfileData(docSnap.data());
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      }
+    };
+    fetchProfile();
+  }, [currentUser]);
 
   const getTranslation = (key) => {
     const translations = {
@@ -69,9 +77,6 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
         phone: "Phone",
         gender: "Gender",
         category: "Category",
-        fatherName: "Father's Name",
-        motherName: "Mother's Name",
-        dob: "Date of Birth",
         address: "Address",
         district: "District",
         state: "State",
@@ -82,7 +87,6 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
         familyIncome: "Family Income (Annual)",
         bankAccount: "Bank Account",
         ifscCode: "IFSC Code",
-        dbtStatus: "DBT Status",
         aadhaar: "Aadhaar Number",
         required: "This field is required",
         invalidEmail: "Please enter a valid email",
@@ -107,9 +111,6 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
         phone: "फोन",
         gender: "लिंग",
         category: "श्रेणी",
-        fatherName: "पिता का नाम",
-        motherName: "माता का नाम",
-        dob: "जन्म तिथि",
         address: "पता",
         district: "जिला",
         state: "राज्य",
@@ -120,7 +121,6 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
         familyIncome: "पारिवारिक आय (वार्षिक)",
         bankAccount: "बैंक खाता",
         ifscCode: "आईएफएससी कोड",
-        dbtStatus: "डीबीटी स्थिति",
         aadhaar: "आधार नंबर",
         required: "यह फ़ील्ड आवश्यक है",
         invalidEmail: "कृपया एक वैध ईमेल दर्ज करें",
@@ -137,39 +137,25 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
     
     switch (name) {
       case 'email':
-        if (value && !/\S+@\S+\.\S+/.test(value)) {
-          newErrors.email = getTranslation('invalidEmail');
-        } else {
-          delete newErrors.email;
-        }
+        if (value && !/\S+@\S+\.\S+/.test(value)) newErrors.email = getTranslation('invalidEmail');
+        else delete newErrors.email;
         break;
       case 'phone':
-        if (value && !/^\d{10}$/.test(value)) {
-          newErrors.phone = getTranslation('invalidPhone');
-        } else {
-          delete newErrors.phone;
-        }
+        if (value && !/^\d{10}$/.test(value)) newErrors.phone = getTranslation('invalidPhone');
+        else delete newErrors.phone;
         break;
       case 'cgpa':
-        if (value && (isNaN(value) || value < 0 || value > 10)) {
-          newErrors.cgpa = getTranslation('invalidCGPA');
-        } else {
-          delete newErrors.cgpa;
-        }
+        if (value && (isNaN(value) || value < 0 || value > 10)) newErrors.cgpa = getTranslation('invalidCGPA');
+        else delete newErrors.cgpa;
         break;
       case 'family_income':
-        if (value && (isNaN(value) || value < 0)) {
-          newErrors.family_income = getTranslation('invalidIncome');
-        } else {
-          delete newErrors.family_income;
-        }
+        if (value && (isNaN(value) || value < 0)) newErrors.family_income = getTranslation('invalidIncome');
+        else delete newErrors.family_income;
         break;
       default:
-        if (value === '' && ['name', 'email', 'phone', 'college_name', 'course', 'cgpa', 'family_income', 'bank_account', 'ifsc_code'].includes(name)) {
+        if (value === '' && ['name','email','phone','college_name','course','cgpa','family_income','bank_account','ifsc_code'].includes(name))
           newErrors[name] = getTranslation('required');
-        } else {
-          delete newErrors[name];
-        }
+        else delete newErrors[name];
     }
     
     setErrors(newErrors);
@@ -177,44 +163,26 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setProfileData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setProfileData(prev => ({ ...prev, [name]: value }));
     validateField(name, value);
   };
 
   const handleSave = async () => {
-    // Check for required fields
-    const requiredFields = ['name', 'email', 'phone', 'college_name', 'course', 'cgpa', 'family_income', 'bank_account', 'ifsc_code'];
+    const requiredFields = ['name','email','phone','college_name','course','cgpa','family_income','bank_account','ifsc_code'];
     const newErrors = {};
-    
     requiredFields.forEach(field => {
-      if (!profileData[field]) {
-        newErrors[field] = getTranslation('required');
-      }
+      if (!profileData[field]) newErrors[field] = getTranslation('required');
     });
-    
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     setIsSaving(true);
     setSaveStatus(null);
-
     try {
-      // Update user data through API service
-      const updatedUser = apiService.updateUserData(profileData);
-      
-      if (updatedUser) {
-        updateUserData(updatedUser);
-        setSaveStatus('success');
-        setIsEditing(false);
-        setTimeout(() => setSaveStatus(null), 3000);
-      } else {
-        setSaveStatus('error');
-      }
+      const docRef = doc(db, 'students', currentUser.uid);
+      await setDoc(docRef, profileData, { merge: true });
+      setSaveStatus('success');
+      setIsEditing(false);
+      setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
       console.error('Error saving profile:', error);
       setSaveStatus('error');
@@ -230,9 +198,6 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
       phone: currentUser?.phone || '',
       gender: currentUser?.gender || 'Male',
       category: currentUser?.category || 'General',
-      father_name: currentUser?.father_name || '',
-      mother_name: currentUser?.mother_name || '',
-      dob: currentUser?.dob || '',
       address: currentUser?.address || '',
       district: currentUser?.district || '',
       state: currentUser?.state || '',
@@ -243,11 +208,7 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
       family_income: currentUser?.family_income || '',
       bank_account: currentUser?.bank_account || '',
       ifsc_code: currentUser?.ifsc_code || '',
-      dbt_status: currentUser?.dbt_status || 'Not Active',
-      aadhaar: currentUser?.aadhaar || '',
-      disabilities: currentUser?.disabilities || [],
-      achievements: currentUser?.achievements || [],
-      extracurricular: currentUser?.extracurricular || []
+      aadhaar: currentUser?.aadhaar || ''
     });
     setErrors({});
     setIsEditing(false);
@@ -256,238 +217,178 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              {getTranslation('title')}
-            </h1>
-            <p className="text-blue-100">
-              {getTranslation('subtitle')}
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            {!isEditing ? (
-              <Button
-                onClick={() => setIsEditing(true)}
-                className="bg-white text-blue-600 hover:bg-blue-50"
-              >
-                <Edit3 className="w-4 h-4 mr-2" />
-                {getTranslation('editProfile')}
-              </Button>
-            ) : (
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleCancel}
-                  variant="outline"
-                  className="bg-white text-blue-600 border-white hover:bg-blue-50"
-                >
-                  {getTranslation('cancel')}
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving || Object.keys(errors).length > 0}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {isSaving ? getTranslation('saving') : getTranslation('saveProfile')}
-                </Button>
-              </div>
-            )}
-          </div>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">{getTranslation('title')}</h1>
+          <p className="text-blue-100">{getTranslation('subtitle')}</p>
         </div>
+        {!isEditing ? (
+          <Button onClick={() => setIsEditing(true)} className="bg-white text-blue-600 hover:bg-blue-50">
+            <Edit3 className="w-4 h-4 mr-2" />
+            {getTranslation('editProfile')}
+          </Button>
+        ) : (
+          <div className="flex space-x-2">
+            <Button onClick={handleCancel} variant="outline" className="bg-white text-blue-600 border-white hover:bg-blue-50">
+              {getTranslation('cancel')}
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || Object.keys(errors).length > 0} className="bg-green-600 hover:bg-green-700">
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? getTranslation('saving') : getTranslation('saveProfile')}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Save Status */}
       {saveStatus && (
-        <div className={`p-4 rounded-lg flex items-center ${
-          saveStatus === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-800' 
-            : 'bg-red-50 border border-red-200 text-red-800'
-        }`}>
-          {saveStatus === 'success' ? (
-            <CheckCircle className="w-5 h-5 mr-2" />
-          ) : (
-            <AlertCircle className="w-5 h-5 mr-2" />
-          )}
+        <div className={`p-4 rounded-lg flex items-center ${saveStatus === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+          {saveStatus === 'success' ? <CheckCircle className="w-5 h-5 mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}
           {saveStatus === 'success' ? getTranslation('saved') : getTranslation('error')}
         </div>
       )}
 
       {/* Profile Form */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Personal Information */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center text-blue-600">
-            <User className="w-5 h-5 mr-2" />
-            {getTranslation('personalInfo')}
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('name')} *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={profileData.name}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            </div>
+        {/* Personal Info */}
+{/* Personal Information */}
+<Card className="p-6">
+  <h3 className="text-lg font-semibold mb-4 flex items-center text-blue-600">
+    <User className="w-5 h-5 mr-2" />
+    {getTranslation('personalInfo')}
+  </h3>
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {getTranslation('name')} *
+      </label>
+      <input
+        type="text"
+        name="name"
+        value={profileData.name}
+        onChange={handleInputChange}
+        disabled={!isEditing}
+        className={`w-full px-3 py-2 border rounded-md ${
+          errors.name ? 'border-red-300' : 'border-gray-300'
+        } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+      />
+      {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+    </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('email')} *
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={profileData.email}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {getTranslation('email')} *
+      </label>
+      <input
+        type="email"
+        name="email"
+        value={profileData.email}
+        onChange={handleInputChange}
+        disabled={!isEditing}
+        className={`w-full px-3 py-2 border rounded-md ${
+          errors.email ? 'border-red-300' : 'border-gray-300'
+        } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+      />
+      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+    </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('phone')} *
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={profileData.phone}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.phone ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
-              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-            </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {getTranslation('phone')} *
+      </label>
+      <input
+        type="tel"
+        name="phone"
+        value={profileData.phone}
+        onChange={handleInputChange}
+        disabled={!isEditing}
+        className={`w-full px-3 py-2 border rounded-md ${
+          errors.phone ? 'border-red-300' : 'border-gray-300'
+        } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+      />
+      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+    </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {getTranslation('gender')}
-                </label>
-                <select
-                  name="gender"
-                  value={profileData.gender}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    errors.gender ? 'border-red-300' : 'border-gray-300'
-                  } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {getTranslation('aadhaar')}
+      </label>
+      <input
+        type="text"
+        name="aadhaar"
+        value={profileData.aadhaar}
+        onChange={handleInputChange}
+        disabled={!isEditing}
+        maxLength="12"
+        className={`w-full px-3 py-2 border rounded-md ${
+          errors.aadhaar ? 'border-red-300' : 'border-gray-300'
+        } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+      />
+    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {getTranslation('category')}
-                </label>
-                <select
-                  name="category"
-                  value={profileData.category}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    errors.category ? 'border-red-300' : 'border-gray-300'
-                  } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-                >
-                  <option value="General">General</option>
-                  <option value="OBC">OBC</option>
-                  <option value="SC">SC</option>
-                  <option value="ST">ST</option>
-                </select>
-              </div>
-            </div>
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {getTranslation('gender')}
+        </label>
+        <select
+          name="gender"
+          value={profileData.gender}
+          onChange={handleInputChange}
+          disabled={!isEditing}
+          className={`w-full px-3 py-2 border rounded-md ${
+            errors.gender ? 'border-red-300' : 'border-gray-300'
+          } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+        >
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('aadhaar')}
-              </label>
-              <input
-                type="text"
-                name="aadhaar"
-                value={profileData.aadhaar}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                maxLength="12"
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.aadhaar ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
-            </div>
-          </div>
-        </Card>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {getTranslation('category')}
+        </label>
+        <select
+          name="category"
+          value={profileData.category}
+          onChange={handleInputChange}
+          disabled={!isEditing}
+          className={`w-full px-3 py-2 border rounded-md ${
+            errors.category ? 'border-red-300' : 'border-gray-300'
+          } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
+        >
+          <option value="General">General</option>
+          <option value="OBC">OBC</option>
+          <option value="SC">SC</option>
+          <option value="ST">ST</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</Card>
 
-        {/* Academic Information */}
+
+        {/* Academic Info */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center text-green-600">
-            <GraduationCap className="w-5 h-5 mr-2" />
-            {getTranslation('academicInfo')}
+            <GraduationCap className="w-5 h-5 mr-2" /> {getTranslation('academicInfo')}
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('collegeName')} *
-              </label>
-              <input
-                type="text"
-                name="college_name"
-                value={profileData.college_name}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.college_name ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('collegeName')} *</label>
+              <input type="text" name="college_name" value={profileData.college_name} onChange={handleInputChange} disabled={!isEditing} className={`w-full px-3 py-2 border rounded-md ${errors.college_name ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.college_name && <p className="text-red-500 text-xs mt-1">{errors.college_name}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('course')} *
-              </label>
-              <input
-                type="text"
-                name="course"
-                value={profileData.course}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.course ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('course')} *</label>
+              <input type="text" name="course" value={profileData.course} onChange={handleInputChange} disabled={!isEditing} className={`w-full px-3 py-2 border rounded-md ${errors.course ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.course && <p className="text-red-500 text-xs mt-1">{errors.course}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('yearOfStudy')}
-              </label>
-              <select
-                name="year_of_study"
-                value={profileData.year_of_study}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.year_of_study ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              >
+              <label className="block text-sm font-medium mb-1">{getTranslation('yearOfStudy')}</label>
+              <select name="year_of_study" value={profileData.year_of_study} onChange={handleInputChange} disabled={!isEditing} className="w-full px-3 py-2 border rounded-md">
                 <option value="1st Year">1st Year</option>
                 <option value="2nd Year">2nd Year</option>
                 <option value="3rd Year">3rd Year</option>
@@ -495,137 +396,34 @@ const StudentProfile = ({ currentUser, updateUserData, language }) => {
                 <option value="5th Year">5th Year</option>
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('cgpa')} *
-              </label>
-              <input
-                type="number"
-                name="cgpa"
-                value={profileData.cgpa}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                min="0"
-                max="10"
-                step="0.1"
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.cgpa ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('cgpa')} *</label>
+              <input type="number" name="cgpa" value={profileData.cgpa} onChange={handleInputChange} disabled={!isEditing} min="0" max="10" step="0.1" className={`w-full px-3 py-2 border rounded-md ${errors.cgpa ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.cgpa && <p className="text-red-500 text-xs mt-1">{errors.cgpa}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('dbtStatus')}
-              </label>
-              <select
-                name="dbt_status"
-                value={profileData.dbt_status}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.dbt_status ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Not Active">Not Active</option>
-              </select>
             </div>
           </div>
         </Card>
 
-        {/* Financial Information */}
+        {/* Financial Info */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center text-purple-600">
-            <DollarSign className="w-5 h-5 mr-2" />
-            {getTranslation('financialInfo')}
+            <DollarSign className="w-5 h-5 mr-2" /> {getTranslation('financialInfo')}
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('familyIncome')} *
-              </label>
-              <input
-                type="number"
-                name="family_income"
-                value={profileData.family_income}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                min="0"
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.family_income ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('familyIncome')} *</label>
+              <input type="number" name="family_income" value={profileData.family_income} onChange={handleInputChange} disabled={!isEditing} min="0" className={`w-full px-3 py-2 border rounded-md ${errors.family_income ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.family_income && <p className="text-red-500 text-xs mt-1">{errors.family_income}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('bankAccount')} *
-              </label>
-              <input
-                type="text"
-                name="bank_account"
-                value={profileData.bank_account}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.bank_account ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('bankAccount')} *</label>
+              <input type="text" name="bank_account" value={profileData.bank_account} onChange={handleInputChange} disabled={!isEditing} className={`w-full px-3 py-2 border rounded-md ${errors.bank_account ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.bank_account && <p className="text-red-500 text-xs mt-1">{errors.bank_account}</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('ifscCode')} *
-              </label>
-              <input
-                type="text"
-                name="ifsc_code"
-                value={profileData.ifsc_code}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.ifsc_code ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
+              <label className="block text-sm font-medium mb-1">{getTranslation('ifscCode')} *</label>
+              <input type="text" name="ifsc_code" value={profileData.ifsc_code} onChange={handleInputChange} disabled={!isEditing} className={`w-full px-3 py-2 border rounded-md ${errors.ifsc_code ? 'border-red-300' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50' : 'bg-white'}`} />
               {errors.ifsc_code && <p className="text-red-500 text-xs mt-1">{errors.ifsc_code}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('district')}
-              </label>
-              <input
-                type="text"
-                name="district"
-                value={profileData.district}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.district ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {getTranslation('state')}
-              </label>
-              <input
-                type="text"
-                name="state"
-                value={profileData.state}
-                onChange={handleInputChange}
-                disabled={!isEditing}
-                className={`w-full px-3 py-2 border rounded-md ${
-                  errors.state ? 'border-red-300' : 'border-gray-300'
-                } ${!isEditing ? 'bg-gray-50' : 'bg-white'} focus:ring-blue-500 focus:border-blue-500`}
-              />
             </div>
           </div>
         </Card>

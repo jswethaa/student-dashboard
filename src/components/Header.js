@@ -1,8 +1,17 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import LanguageToggle from "./LanguageToggle"
 
-const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) => {
+const Header = ({
+  currentUser,
+  language,
+  onLanguageChange,
+  onLogout,
+  onThemeToggle,
+  isDarkMode,
+  setCurrentPage,
+}) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const dropdownRef = useRef(null)
@@ -13,7 +22,6 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
       en: {
         portal: "DBT Portal",
         profile: "Profile",
-        settings: "Settings",
         logout: "Logout",
         notifications: "Notifications",
         darkMode: "Dark Mode",
@@ -26,7 +34,6 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
       hi: {
         portal: "डीबीटी पोर्टल",
         profile: "प्रोफ़ाइल",
-        settings: "सेटिंग्स",
         logout: "लॉग आउट",
         notifications: "सूचनाएं",
         darkMode: "डार्क मोड",
@@ -39,7 +46,6 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
       ta: {
         portal: "டிபிடி போர்ட்டல்",
         profile: "சுயவிவரம்",
-        settings: "அமைப்புகள்",
         logout: "வெளியேறு",
         notifications: "அறிவிப்புகள்",
         darkMode: "இருண்ட பயன்முறை",
@@ -54,23 +60,6 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
   }
 
   const t = getTranslation()
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowProfileDropdown(false)
-      }
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
-        setShowNotifications(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
 
   const mockNotifications = [
     {
@@ -88,6 +77,20 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
       unread: true,
     },
   ]
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   return (
     <header className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg border-b border-blue-200 sticky top-0 z-50">
@@ -117,55 +120,57 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7H4l5-5v5z" />
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z"
+                />
               </svg>
               {mockNotifications.filter((n) => n.unread).length > 0 && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-secondary rounded-full flex items-center justify-center">
-                  <span className="text-xs text-secondary-foreground font-bold">
-                    {mockNotifications.filter((n) => n.unread).length}
-                  </span>
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  {mockNotifications.filter((n) => n.unread).length}
                 </span>
               )}
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg py-2 z-50">
-                <div className="px-4 py-2 border-b border-border">
-                  <h3 className="font-medium text-popover-foreground">{t.notifications}</h3>
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-fadeIn">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {t.notifications}
+                  </h3>
                 </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {mockNotifications.length > 0 ? (
-                    mockNotifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className="px-4 py-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className={`w-2 h-2 rounded-full mt-2 ${notification.unread ? "bg-secondary" : "bg-muted-foreground"}`}
-                          />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-popover-foreground">{notification.title}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                <ul className="max-h-64 overflow-y-auto">
+                  {mockNotifications.length === 0 ? (
+                    <li className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">
+                      {t.noNotifications}
+                    </li>
                   ) : (
-                    <div className="px-4 py-8 text-center text-muted-foreground">
-                      <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                      </svg>
-                      <p className="text-sm">{t.noNotifications}</p>
-                    </div>
+                    mockNotifications.map((note) => (
+                      <li
+                        key={note.id}
+                        className="px-4 py-3 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{note.title}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">{note.message}</p>
+                        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{note.time}</p>
+                      </li>
+                    ))
                   )}
-                </div>
+                </ul>
               </div>
             )}
           </div>
+
+          {/* Language Toggle */}
+          <LanguageToggle language={language} onLanguageChange={onLanguageChange} />
 
           {/* Theme toggle */}
           <button
@@ -174,7 +179,12 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
             title={isDarkMode ? t.lightMode : t.darkMode}
           >
             {isDarkMode ? (
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -183,7 +193,12 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
                 />
               </svg>
             ) : (
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -194,7 +209,7 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
             )}
           </button>
 
-          {/* Profile dropdown */}
+          {/* Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -215,8 +230,8 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
             </button>
 
             {showProfileDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg py-2 z-50">
-                <div className="px-4 py-3 border-b border-border">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center gap-3">
                     <img
                       src={currentUser?.avatar || "/placeholder.svg?height=48&width=48&query=student profile"}
@@ -224,71 +239,26 @@ const Header = ({ currentUser, language, onLogout, onThemeToggle, isDarkMode }) 
                       className="w-12 h-12 rounded-full object-cover border-2 border-primary"
                     />
                     <div>
-                      <p className="font-medium text-popover-foreground">{currentUser?.name || "Student User"}</p>
-                      <p className="text-sm text-muted-foreground">{currentUser?.email || "student@example.com"}</p>
-                      <p className="text-xs text-muted-foreground">{currentUser?.university || "University"}</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{currentUser?.name}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{currentUser?.email}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{currentUser?.university}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="py-2">
-                  <button className="w-full px-4 py-2 text-left hover:bg-muted transition-colors flex items-center gap-3">
-                    <svg
-                      className="w-4 h-4 text-muted-foreground"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    <span className="text-popover-foreground">{t.viewProfile}</span>
-                  </button>
+                <button
+                  onClick={() => setCurrentPage("profile")}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  👤 {t.viewProfile}
+                </button>
 
-                  <button className="w-full px-4 py-2 text-left hover:bg-muted transition-colors flex items-center gap-3">
-                    <svg
-                      className="w-4 h-4 text-muted-foreground"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <span className="text-popover-foreground">{t.settings}</span>
-                  </button>
-
-                  <div className="border-t border-border my-2"></div>
-
-                  <button
-                    onClick={onLogout}
-                    className="w-full px-4 py-2 text-left hover:bg-muted transition-colors flex items-center gap-3 text-destructive"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    <span>{t.logout}</span>
-                  </button>
-                </div>
+                <button
+                  onClick={onLogout}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-700 transition-colors flex items-center gap-2 text-red-600 dark:text-red-400"
+                >
+                  🚪 {t.logout}
+                </button>
               </div>
             )}
           </div>
