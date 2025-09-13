@@ -1,68 +1,90 @@
-import { useState } from "react"
-import apiService from "../services/api"
+import { useState } from "react";
+import { auth, db } from "../firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const Login = ({ onLogin, language }) => {
   const [formData, setFormData] = useState({
     username: "",
     password: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRegisterMode, setIsRegisterMode] = useState(false)
-  const [error, setError] = useState("")
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     try {
-      let response
+      let userCredential;
+
       if (isRegisterMode) {
-        response = await apiService.register({
-          username: formData.username,
-          password: formData.password,
-          email: formData.username.includes('@') ? formData.username : `${formData.username}@example.com`
-        })
+        // ✅ Register new user
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          formData.username,
+          formData.password
+        );
+
+        // Save default profile in Firestore
+        await setDoc(doc(db, "users", userCredential.user.uid), {
+          name: formData.username.split("@")[0], // default name before editing
+          email: formData.username,
+          createdAt: new Date(),
+        });
       } else {
-        response = await apiService.login({
-          username: formData.username,
-          password: formData.password
-        })
+        // ✅ Login existing user
+        userCredential = await signInWithEmailAndPassword(
+          auth,
+          formData.username,
+          formData.password
+        );
       }
-      
-      if (response.success || response.token) {
-        onLogin(response.user)
+
+      // ✅ Fetch user profile from Firestore
+      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      if (userDoc.exists()) {
+        onLogin(userDoc.data()); // pass profile data to parent
       } else {
-        setError("Invalid credentials. Please try again.")
+        // fallback if profile missing
+        onLogin({ email: userCredential.user.email });
       }
-    } catch (error) {
-      console.error("Login/Register error:", error)
-      setError("Something went wrong. Please try again.")
+    }catch (err) {
+  console.error("Firebase Auth error:", err.code, err.message);
+  setError(err.message); // Show real Firebase error
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    })
-  }
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-gray-900">
-            {isRegisterMode 
-              ? (language === "en" ? "Create Account" : "खाता बनाएं")
-              : (language === "en" ? "DBT Student Portal" : "डीबीटी छात्र पोर्टल")
-            }
+            {isRegisterMode
+              ? language === "en"
+                ? "Create Account"
+                : "खाता बनाएं"
+              : language === "en"
+              ? "DBT Student Portal"
+              : "डीबीटी छात्र पोर्टल"}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            {language === "en" 
-              ? "Access scholarships, guidance, and community resources" 
+            {language === "en"
+              ? "Access scholarships, guidance, and community resources"
               : "छात्रवृत्ति, मार्गदर्शन और सामुदायिक संसाधनों तक पहुंचें"}
           </p>
         </div>
@@ -75,28 +97,36 @@ const Login = ({ onLogin, language }) => {
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
-          
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                {language === "en" ? "Student ID / Email" : "छात्र आईडी / ईमेल"}
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700"
+              >
+                {language === "en" ? "Email" : "ईमेल"}
               </label>
               <div className="mt-1">
                 <input
                   id="username"
                   name="username"
-                  type="text"
+                  type="email"
                   required
                   value={formData.username}
                   onChange={handleInputChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder={language === "en" ? "Enter your student ID" : "अपना छात्र आईडी दर्ज करें"}
+                  placeholder={
+                    language === "en" ? "Enter your email" : "अपना ईमेल दर्ज करें"
+                  }
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 {language === "en" ? "Password" : "पासवर्ड"}
               </label>
               <div className="mt-1">
@@ -108,7 +138,11 @@ const Login = ({ onLogin, language }) => {
                   value={formData.password}
                   onChange={handleInputChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder={language === "en" ? "Enter your password" : "अपना पासवर्ड दर्ज करें"}
+                  placeholder={
+                    language === "en"
+                      ? "Enter your password"
+                      : "अपना पासवर्ड दर्ज करें"
+                  }
                 />
               </div>
             </div>
@@ -121,14 +155,22 @@ const Login = ({ onLogin, language }) => {
                   type="checkbox"
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   {language === "en" ? "Remember me" : "मुझे याद रखें"}
                 </label>
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                  {language === "en" ? "Forgot your password?" : "पासवर्ड भूल गए?"}
+                <a
+                  href="#"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  {language === "en"
+                    ? "Forgot your password?"
+                    : "पासवर्ड भूल गए?"}
                 </a>
               </div>
             </div>
@@ -141,19 +183,40 @@ const Login = ({ onLogin, language }) => {
               >
                 {isLoading ? (
                   <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
-                    {isRegisterMode 
-                      ? (language === "en" ? "Creating account..." : "खाता बनाया जा रहा है...")
-                      : (language === "en" ? "Signing in..." : "साइन इन हो रहे हैं...")
-                    }
+                    {isRegisterMode
+                      ? language === "en"
+                        ? "Creating account..."
+                        : "खाता बनाया जा रहा है..."
+                      : language === "en"
+                      ? "Signing in..."
+                      : "साइन इन हो रहे हैं..."}
                   </div>
+                ) : isRegisterMode ? (
+                  language === "en" ? "Create Account" : "खाता बनाएं"
+                ) : language === "en" ? (
+                  "Sign in"
                 ) : (
-                  isRegisterMode 
-                    ? (language === "en" ? "Create Account" : "खाता बनाएं")
-                    : (language === "en" ? "Sign in" : "साइन इन करें")
+                  "साइन इन करें"
                 )}
               </button>
             </div>
@@ -166,7 +229,9 @@ const Login = ({ onLogin, language }) => {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">
-                  {language === "en" ? "New to DBT Portal?" : "डीबीटी पोर्टल में नए हैं?"}
+                  {language === "en"
+                    ? "New to DBT Portal?"
+                    : "डीबीटी पोर्टल में नए हैं?"}
                 </span>
               </div>
             </div>
@@ -177,17 +242,20 @@ const Login = ({ onLogin, language }) => {
                 onClick={() => setIsRegisterMode(!isRegisterMode)}
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                {isRegisterMode 
-                  ? (language === "en" ? "Already have an account? Sign in" : "पहले से खाता है? साइन इन करें")
-                  : (language === "en" ? "Create new account" : "नया खाता बनाएं")
-                }
+                {isRegisterMode
+                  ? language === "en"
+                    ? "Already have an account? Sign in"
+                    : "पहले से खाता है? साइन इन करें"
+                  : language === "en"
+                  ? "Create new account"
+                  : "नया खाता बनाएं"}
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;
